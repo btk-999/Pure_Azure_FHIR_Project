@@ -1,0 +1,11 @@
+{
+	"name": "LS_Synapx",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobFS",
+		"typeProperties": {
+			"url": "https://stsynapx.dfs.core.windows.net/"
+		}
+	}
+}

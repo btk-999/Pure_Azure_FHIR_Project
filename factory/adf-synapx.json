@@ -1,0 +1,15 @@
+{
+	"name": "adf-synapx",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "centralindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "e3883c17-5572-4b61-8f69-3030a5b64f53",
+		"tenantId": "ef912a28-090a-4b48-995b-322afd64149b"
+	}
+}

@@ -1,0 +1,55 @@
+{
+	"name": "DS_SQL_FHIR_RAW",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_FHIR_AZSQL",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "RawID",
+				"type": "bigint",
+				"precision": 19
+			},
+			{
+				"name": "ResourceType",
+				"type": "varchar"
+			},
+			{
+				"name": "RawJson",
+				"type": "nvarchar"
+			},
+			{
+				"name": "CreatedDate",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			},
+			{
+				"name": "ExtractionTimestamp",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			},
+			{
+				"name": "ApiUrlOrParams",
+				"type": "nvarchar"
+			},
+			{
+				"name": "SourceFile",
+				"type": "nvarchar"
+			},
+			{
+				"name": "PipelineRunID",
+				"type": "varchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "stg",
+			"table": "FHIR_RAW"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

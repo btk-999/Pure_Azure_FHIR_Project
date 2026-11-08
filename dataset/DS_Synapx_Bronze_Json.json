@@ -1,0 +1,174 @@
+{
+	"name": "DS_Synapx_Bronze_Json",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_Synapx",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"directory": {
+				"type": "String"
+			},
+			"file_name": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().file_name",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().directory",
+					"type": "Expression"
+				},
+				"fileSystem": "bronze"
+			}
+		},
+		"schema": {
+			"type": "object",
+			"properties": {
+				"resourceType": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"meta": {
+					"type": "object",
+					"properties": {
+						"lastUpdated": {
+							"type": "string"
+						}
+					}
+				},
+				"type": {
+					"type": "string"
+				},
+				"link": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"relation": {
+								"type": "string"
+							},
+							"url": {
+								"type": "string"
+							}
+						}
+					}
+				},
+				"entry": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"fullUrl": {
+								"type": "string"
+							},
+							"resource": {
+								"type": "object",
+								"properties": {
+									"resourceType": {
+										"type": "string"
+									},
+									"id": {
+										"type": "string"
+									},
+									"meta": {
+										"type": "object",
+										"properties": {
+											"versionId": {
+												"type": "string"
+											},
+											"lastUpdated": {
+												"type": "string"
+											},
+											"source": {
+												"type": "string"
+											},
+											"tag": {
+												"type": "array",
+												"items": {
+													"type": "object",
+													"properties": {
+														"system": {
+															"type": "string"
+														},
+														"code": {
+															"type": "string"
+														},
+														"display": {
+															"type": "string"
+														}
+													}
+												}
+											}
+										}
+									},
+									"identifier": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"system": {
+													"type": "string"
+												},
+												"value": {
+													"type": "string"
+												}
+											}
+										}
+									},
+									"active": {
+										"type": "boolean"
+									},
+									"name": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"use": {
+													"type": "string"
+												},
+												"family": {
+													"type": "string"
+												},
+												"given": {
+													"type": "array",
+													"items": {
+														"type": "string"
+													}
+												}
+											}
+										}
+									},
+									"gender": {
+										"type": "string"
+									},
+									"birthDate": {
+										"type": "string"
+									}
+								}
+							},
+							"search": {
+								"type": "object",
+								"properties": {
+									"mode": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

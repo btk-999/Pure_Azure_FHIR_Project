@@ -1,0 +1,133 @@
+{
+	"name": "PL_ADLS_Bronze_To_SQL_Stg",
+	"properties": {
+		"activities": [
+			{
+				"name": "LK_Read_Raw_JSON",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "DS_Synapx_Bronze_Json",
+						"type": "DatasetReference",
+						"parameters": {
+							"directory": {
+								"value": "@pipeline().parameters.Directory",
+								"type": "Expression"
+							},
+							"file_name": {
+								"value": "@pipeline().parameters.FileName",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "Stored procedure1",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "LK_Read_Raw_JSON",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[usp_Insert_FHIR_RAW]",
+					"storedProcedureParameters": {
+						"ApiUrlOrParams": {
+							"value": {
+								"value": "@pipeline().parameters.ApiUrlOrParamsFileName",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"PipelineRunID": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"RawJson": {
+							"value": {
+								"value": "@string(activity('LK_Read_Raw_JSON').output.firstRow)",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"ResourceType": {
+							"value": {
+								"value": "@pipeline().parameters.ResourceType",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"SourceFile": {
+							"value": {
+								"value": "@concat(pipeline().parameters.Directory,'/',pipeline().parameters.FileName)",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_FHIR_AZSQL",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"ResourceType": {
+				"type": "string",
+				"defaultValue": "Patient"
+			},
+			"Directory": {
+				"type": "string",
+				"defaultValue": "Patient/year=2026/month=11/day=07"
+			},
+			"ApiUrlOrParamsFileName": {
+				"type": "string",
+				"defaultValue": "https://hapi.fhir.org/baseR4/Patient"
+			},
+			"FileName": {
+				"type": "string",
+				"defaultValue": "Patient_8c38a6da-d0dd-4755-adcf-efd426904691.json"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-11-07T17:32:44Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

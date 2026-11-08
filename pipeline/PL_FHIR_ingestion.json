@@ -1,0 +1,82 @@
+{
+	"name": "PL_FHIR_ingestion",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy_data_from_FHIR_to_Bronze",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET",
+						"paginationRules": {
+							"AbsoluteUrl": "$.$.link[?(@.relation=='next')].url"
+						}
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_fhir_API",
+						"type": "DatasetReference",
+						"parameters": {
+							"relative_url": {
+								"value": "@concat(\n    pipeline().parameters.resource_name,\n    '?_lastUpdated=ge',\n    uriComponent(pipeline().parameters.last_updated)\n)",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_Synapx_Bronze_Json",
+						"type": "DatasetReference",
+						"parameters": {
+							"directory": {
+								"value": "@concat(\n    pipeline().parameters.resource_name,\n    '/year=',\n    formatDateTime(utcNow(),'yyyy'),\n    '/month=',\n    formatDateTime(utcNow(),'MM'),\n    '/day=',\n    formatDateTime(utcNow(),'dd')\n)",
+								"type": "Expression"
+							},
+							"file_name": {
+								"value": "@concat(\n    pipeline().parameters.resource_name,\n    '_',\n    pipeline().RunId,\n    '.json'\n)",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"resource_name": {
+				"type": "string",
+				"defaultValue": "Patient"
+			},
+			"last_updated": {
+				"type": "string",
+				"defaultValue": "1970-01-01T00:00:00Z"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-11-07T17:01:51Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

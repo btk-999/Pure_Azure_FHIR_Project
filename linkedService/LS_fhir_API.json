@@ -1,0 +1,14 @@
+{
+	"name": "LS_fhir_API",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"description": "This linked service created for healthcare source API",
+		"annotations": [],
+		"type": "RestService",
+		"typeProperties": {
+			"url": "https://hapi.fhir.org/baseR4/",
+			"enableServerCertificateValidation": true,
+			"authenticationType": "Anonymous"
+		}
+	}
+}
