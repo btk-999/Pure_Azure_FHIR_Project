@@ -1,0 +1,145 @@
+if not EXISTS (select 1 from sys.schemas where name='slv')
+EXEC('create schema slv')
+GO
+
+--creating patient table
+
+CREATE TABLE slv.Patient
+(ResourceID NVARCHAR(100) NOT NULL PRIMARY KEY,
+IdentifierJson NVARCHAR(MAX) NULL,
+IsActive BIT NULL,
+NameJson NVARCHAR(MAX) NULL,
+Gender NVARCHAR(20) NULL,
+BirthDate DATE NULL,
+MetaVersionID NVARCHAR(50) NULL,
+MetaLastUpdated DATETIMEOFFSET NULL,
+MetaSource NVARCHAR(200) NULL,
+MetaTagJson NVARCHAR(MAX) NULL,
+SourceRawID BIGINT NOT NULL,
+PipelineRunID NVARCHAR(100) NULL,
+SourceFile NVARCHAR(1000) NULL,
+ExtractionTimestamp DATETIME2 NULL,
+RawResourceJson NVARCHAR(MAX) NULL,
+RecordHash CHAR(64) NULL,
+SilverLoadTime DATETIME2 NOT NULL
+DEFAULT SYSUTCDATETIME());
+
+--creating encounter table
+
+CREATE TABLE slv.Encounter
+(ResourceID NVARCHAR(100) NOT NULL PRIMARY KEY,
+IdentifierJson NVARCHAR(MAX) NULL,
+Status NVARCHAR(50) NULL,
+ClassJson NVARCHAR(MAX) NULL,
+SubjectReference NVARCHAR(200) NULL,
+SubjectJson NVARCHAR(MAX) NULL,
+PeriodStart DATETIMEOFFSET NULL,
+PeriodEnd DATETIMEOFFSET NULL,
+ServiceTypeJson NVARCHAR(MAX) NULL,
+ParticipantJson NVARCHAR(MAX) NULL,
+TypeJson NVARCHAR(MAX) NULL,
+MetaVersionID NVARCHAR(50) NULL,
+MetaLastUpdated DATETIMEOFFSET NULL,
+SourceRawID BIGINT NOT NULL,
+PipelineRunID NVARCHAR(100) NULL,
+SourceFile NVARCHAR(1000) NULL,
+ExtractionTimestamp DATETIME2 NULL,
+RawResourceJson NVARCHAR(MAX) NULL,
+RecordHash CHAR(64) NULL,
+SilverLoadTime DATETIME2 NOT NULL
+DEFAULT SYSUTCDATETIME());
+
+--creating observation table
+
+
+CREATE TABLE slv.Observation
+(ResourceID NVARCHAR(100) NOT NULL PRIMARY KEY,
+Status NVARCHAR(50) NULL,
+CategoryJson NVARCHAR(MAX) NULL,
+CodeJson NVARCHAR(MAX) NULL,
+SubjectReference NVARCHAR(200) NULL,
+EffectiveDateTime DATETIMEOFFSET NULL,
+ValueQuantity DECIMAL(18,6) NULL,
+ValueUnit NVARCHAR(50) NULL,
+ValueSystem NVARCHAR(200) NULL,
+ValueCode NVARCHAR(50) NULL,
+MetaVersionID NVARCHAR(50) NULL,
+MetaLastUpdated DATETIMEOFFSET NULL,
+SourceRawID BIGINT NOT NULL,
+PipelineRunID NVARCHAR(100) NULL,
+SourceFile NVARCHAR(1000) NULL,
+ExtractionTimestamp DATETIME2 NULL,
+RawResourceJson NVARCHAR(MAX) NULL,
+RecordHash CHAR(64) NULL,
+SilverLoadTime DATETIME2 NOT NULL
+DEFAULT SYSUTCDATETIME()
+);
+
+--creating condition table
+
+
+CREATE TABLE slv.Condition
+(ResourceID NVARCHAR(100) NOT NULL PRIMARY KEY,
+IdentifierJson NVARCHAR(MAX) NULL,
+ClinicalStatusJson NVARCHAR(MAX) NULL,
+VerificationStatusJson NVARCHAR(MAX) NULL,
+CodeJson NVARCHAR(MAX) NULL,
+SubjectReference NVARCHAR(200) NULL,
+EncounterReference NVARCHAR(200) NULL,
+OnsetDateTime DATETIMEOFFSET NULL,
+RecordedDate DATE NULL,
+AsserterReference NVARCHAR(200) NULL,
+MetaVersionID NVARCHAR(50) NULL,
+MetaLastUpdated DATETIMEOFFSET NULL,
+SourceRawID BIGINT NOT NULL,
+PipelineRunID NVARCHAR(100) NULL,
+SourceFile NVARCHAR(1000) NULL,
+ExtractionTimestamp DATETIME2 NULL,
+RawResourceJson NVARCHAR(MAX) NULL,
+RecordHash CHAR(64) NULL,
+SilverLoadTime DATETIME2 NOT NULL
+DEFAULT SYSUTCDATETIME());
+
+
+-- checking
+
+SELECT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'slv' ORDER BY TABLE_NAME;
+
+
+--scd type 2 for patient
+
+IF OBJECT_ID('slv.Patient_SCD2', 'U') IS NULL
+BEGIN
+    CREATE TABLE slv.Patient_SCD2
+    (PatientSK BIGINT IDENTITY(1,1) PRIMARY KEY,
+    ResourceID NVARCHAR(100) NOT NULL,
+    IdentifierJson NVARCHAR(MAX) NULL,
+    IsActive BIT NULL,
+    NameJson NVARCHAR(MAX) NULL,
+    Gender NVARCHAR(20) NULL,
+    BirthDate DATE NULL,
+    MetaVersionID NVARCHAR(50) NULL,
+    MetaLastUpdated DATETIMEOFFSET NULL,
+    MetaSource NVARCHAR(200) NULL,
+    MetaTagJson NVARCHAR(MAX) NULL,
+    SourceRawID BIGINT NOT NULL,
+    PipelineRunID NVARCHAR(100) NULL,
+    SourceFile NVARCHAR(1000) NULL,
+    ExtractionTimestamp DATETIME2 NULL,
+    RawResourceJson NVARCHAR(MAX) NULL,
+    RecordHash CHAR(64) NULL,
+    SilverLoadTime DATETIME2 NOT NULL,
+    IsCurrent BIT NOT NULL DEFAULT 1,
+    ValidFrom DATETIME2(7) NOT NULL,
+    ValidTo DATETIME2(7) NULL);
+
+    CREATE UNIQUE INDEX UX_Patient_SCD2_Current
+    ON slv.Patient_SCD2(ResourceID)
+    WHERE IsCurrent = 1;
+END;
+
+
+---verification
+
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'slv' AND TABLE_NAME = 'Patient_SCD2' ORDER BY ORDINAL_POSITION;
