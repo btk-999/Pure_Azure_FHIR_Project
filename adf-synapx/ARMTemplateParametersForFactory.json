@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-synapx"
+		},
+		"LS_FHIR_AZSQL_properties_typeProperties_server": {
+			"value": "synapxsqlserver.database.windows.net"
+		},
+		"LS_FHIR_AZSQL_properties_typeProperties_database": {
+			"value": "Synapx_sql_db"
+		},
+		"LS_Synapx_properties_typeProperties_url": {
+			"value": "https://stsynapx.dfs.core.windows.net/"
+		},
+		"LS_fhir_API_properties_typeProperties_url": {
+			"value": "https://hapi.fhir.org/baseR4/"
+		}
+	}
+}

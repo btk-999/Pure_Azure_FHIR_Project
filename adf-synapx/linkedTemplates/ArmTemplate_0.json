@@ -1,0 +1,846 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-synapx"
+		},
+		"LS_FHIR_AZSQL_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "synapxsqlserver.database.windows.net"
+		},
+		"LS_FHIR_AZSQL_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "Synapx_sql_db"
+		},
+		"LS_Synapx_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stsynapx.dfs.core.windows.net/"
+		},
+		"LS_fhir_API_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://hapi.fhir.org/baseR4/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_FHIR_AZSQL')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('LS_FHIR_AZSQL_properties_typeProperties_server')]",
+					"database": "[parameters('LS_FHIR_AZSQL_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SystemAssignedManagedIdentity"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_Synapx')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('LS_Synapx_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_fhir_API')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "This linked service created for healthcare source API",
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('LS_fhir_API_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_FHIR_Silver_Load')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "FE_Silver_SP",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@createArray('Patient','Encounter','Observation','Condition')",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "SP_FHIR_Silver_Procedure",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[slv].[usp_LoadFHIRResource]",
+										"storedProcedureParameters": {
+											"ResourceType": {
+												"value": {
+													"value": "@item()",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "LS_FHIR_AZSQL",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-11-08T07:44:47Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_FHIR_AZSQL')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_SQL_FHIR_RAW')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_FHIR_AZSQL",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "RawID",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "ResourceType",
+						"type": "varchar"
+					},
+					{
+						"name": "RawJson",
+						"type": "nvarchar"
+					},
+					{
+						"name": "CreatedDate",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "ExtractionTimestamp",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "ApiUrlOrParams",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SourceFile",
+						"type": "nvarchar"
+					},
+					{
+						"name": "PipelineRunID",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "stg",
+					"table": "FHIR_RAW"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_FHIR_AZSQL')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_Synapx_Bronze_Json')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_Synapx",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"directory": {
+						"type": "String"
+					},
+					"file_name": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().directory",
+							"type": "Expression"
+						},
+						"fileSystem": "bronze"
+					}
+				},
+				"schema": {
+					"type": "object",
+					"properties": {
+						"resourceType": {
+							"type": "string"
+						},
+						"id": {
+							"type": "string"
+						},
+						"meta": {
+							"type": "object",
+							"properties": {
+								"lastUpdated": {
+									"type": "string"
+								}
+							}
+						},
+						"type": {
+							"type": "string"
+						},
+						"link": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"relation": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"entry": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"fullUrl": {
+										"type": "string"
+									},
+									"resource": {
+										"type": "object",
+										"properties": {
+											"resourceType": {
+												"type": "string"
+											},
+											"id": {
+												"type": "string"
+											},
+											"meta": {
+												"type": "object",
+												"properties": {
+													"versionId": {
+														"type": "string"
+													},
+													"lastUpdated": {
+														"type": "string"
+													},
+													"source": {
+														"type": "string"
+													},
+													"tag": {
+														"type": "array",
+														"items": {
+															"type": "object",
+															"properties": {
+																"system": {
+																	"type": "string"
+																},
+																"code": {
+																	"type": "string"
+																},
+																"display": {
+																	"type": "string"
+																}
+															}
+														}
+													}
+												}
+											},
+											"identifier": {
+												"type": "array",
+												"items": {
+													"type": "object",
+													"properties": {
+														"system": {
+															"type": "string"
+														},
+														"value": {
+															"type": "string"
+														}
+													}
+												}
+											},
+											"active": {
+												"type": "boolean"
+											},
+											"name": {
+												"type": "array",
+												"items": {
+													"type": "object",
+													"properties": {
+														"use": {
+															"type": "string"
+														},
+														"family": {
+															"type": "string"
+														},
+														"given": {
+															"type": "array",
+															"items": {
+																"type": "string"
+															}
+														}
+													}
+												}
+											},
+											"gender": {
+												"type": "string"
+											},
+											"birthDate": {
+												"type": "string"
+											}
+										}
+									},
+									"search": {
+										"type": "object",
+										"properties": {
+											"mode": {
+												"type": "string"
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_Synapx')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_fhir_API')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_fhir_API",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"relative_url": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@dataset().relative_url",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_fhir_API')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_ADLS_Bronze_To_SQL_Stg')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LK_Read_Raw_JSON",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "DS_Synapx_Bronze_Json",
+								"type": "DatasetReference",
+								"parameters": {
+									"directory": {
+										"value": "@pipeline().parameters.Directory",
+										"type": "Expression"
+									},
+									"file_name": {
+										"value": "@pipeline().parameters.FileName",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": true
+						}
+					},
+					{
+						"name": "Stored procedure1",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "LK_Read_Raw_JSON",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_Insert_FHIR_RAW]",
+							"storedProcedureParameters": {
+								"ApiUrlOrParams": {
+									"value": {
+										"value": "@pipeline().parameters.ApiUrlOrParamsFileName",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"PipelineRunID": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"RawJson": {
+									"value": {
+										"value": "@string(activity('LK_Read_Raw_JSON').output.firstRow)",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"ResourceType": {
+									"value": {
+										"value": "@pipeline().parameters.ResourceType",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"SourceFile": {
+									"value": {
+										"value": "@concat(pipeline().parameters.Directory,'/',pipeline().parameters.FileName)",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_FHIR_AZSQL",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"ResourceType": {
+						"type": "string",
+						"defaultValue": "Patient"
+					},
+					"Directory": {
+						"type": "string",
+						"defaultValue": "Patient/year=2026/month=11/day=07"
+					},
+					"ApiUrlOrParamsFileName": {
+						"type": "string",
+						"defaultValue": "https://hapi.fhir.org/baseR4/Patient"
+					},
+					"FileName": {
+						"type": "string",
+						"defaultValue": "Patient_8c38a6da-d0dd-4755-adcf-efd426904691.json"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-11-07T17:32:44Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_Synapx_Bronze_Json')]",
+				"[concat(variables('factoryId'), '/linkedServices/LS_FHIR_AZSQL')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_FHIR_ingestion')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy_data_from_FHIR_to_Bronze",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET",
+								"paginationRules": {
+									"AbsoluteUrl": "$.$.link[?(@.relation=='next')].url"
+								}
+							},
+							"sink": {
+								"type": "JsonSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "JsonWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_fhir_API",
+								"type": "DatasetReference",
+								"parameters": {
+									"relative_url": {
+										"value": "@concat(\n    pipeline().parameters.resource_name,\n    '?_lastUpdated=ge',\n    uriComponent(pipeline().parameters.last_updated)\n)",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_Synapx_Bronze_Json",
+								"type": "DatasetReference",
+								"parameters": {
+									"directory": {
+										"value": "@concat(\n    pipeline().parameters.resource_name,\n    '/year=',\n    formatDateTime(utcNow(),'yyyy'),\n    '/month=',\n    formatDateTime(utcNow(),'MM'),\n    '/day=',\n    formatDateTime(utcNow(),'dd')\n)",
+										"type": "Expression"
+									},
+									"file_name": {
+										"value": "@concat(\n    pipeline().parameters.resource_name,\n    '_',\n    pipeline().RunId,\n    '.json'\n)",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"resource_name": {
+						"type": "string",
+						"defaultValue": "Patient"
+					},
+					"last_updated": {
+						"type": "string",
+						"defaultValue": "1970-01-01T00:00:00Z"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-11-07T17:01:51Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_fhir_API')]",
+				"[concat(variables('factoryId'), '/datasets/DS_Synapx_Bronze_Json')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_FHIR_Dynamic_Ingestion')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "FHIR_Foreach_Iteration",
+						"type": "ForEach",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@createArray(\n    'Patient',\n    'Encounter',\n    'Observation',\n    'Condition'\n)",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Iteration_copy_data",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "wtrmrk_col_fetch",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "RestSource",
+											"httpRequestTimeout": "00:01:40",
+											"requestInterval": "00.00:00:00.010",
+											"requestMethod": "GET",
+											"paginationRules": {
+												"AbsoluteUrl": "$.$.link[?(@.relation=='next')].url"
+											}
+										},
+										"sink": {
+											"type": "JsonSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "JsonWriteSettings"
+											}
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_fhir_API",
+											"type": "DatasetReference",
+											"parameters": {
+												"relative_url": {
+													"value": "@concat(item(), '?_lastUpdated=ge',\nuriComponent(activity('wtrmrk_col_fetch').output.firstRow.LastWatermark))\n",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_Synapx_Bronze_Json",
+											"type": "DatasetReference",
+											"parameters": {
+												"directory": {
+													"value": "@concat(item(),'/year=',formatDateTime(utcNow(),'yyyy'),\n'/month=',formatDateTime(utcNow(),'MM'),\n'/day=',formatDateTime(utcNow(),'dd'))",
+													"type": "Expression"
+												},
+												"file_name": {
+													"value": "@concat(item(),'_',pipeline().RunId,'.json')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Execute Pipeline1",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Iteration_copy_data",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "PL_ADLS_Bronze_To_SQL_Stg",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"ResourceType": {
+												"value": "@item()",
+												"type": "Expression"
+											},
+											"Directory": {
+												"value": "@concat(item(),'/year=',formatDateTime(utcNow(),'yyyy'),\n'/month=',formatDateTime(utcNow(),'MM'),\n'/day=',formatDateTime(utcNow(),'dd'))",
+												"type": "Expression"
+											},
+											"ApiUrlOrParamsFileName": {
+												"value": "@concat('https://hapi.fhir.org/baseR4/', item())",
+												"type": "Expression"
+											},
+											"FileName": {
+												"value": "@concat(item(),'_',pipeline().RunId,'.json')",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "wtrmrk_col_fetch",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderQuery": {
+												"value": "SELECT ResourceType, CONVERT(VARCHAR(19), LastWatermark, 126) + 'Z' AS LastWatermark\nFROM dbo.Fhir_Watermark WHERE ResourceType = '@{item()}';",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DS_SQL_FHIR_RAW",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "wtrmrk_upd_procedure",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Execute Pipeline1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[usp_UpdateFHIRWatermark]",
+										"storedProcedureParameters": {
+											"ResourceType": {
+												"value": {
+													"value": "@item()",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "LS_FHIR_AZSQL",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-11-08T10:05:05Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_fhir_API')]",
+				"[concat(variables('factoryId'), '/datasets/DS_Synapx_Bronze_Json')]",
+				"[concat(variables('factoryId'), '/pipelines/PL_ADLS_Bronze_To_SQL_Stg')]",
+				"[concat(variables('factoryId'), '/datasets/DS_SQL_FHIR_RAW')]",
+				"[concat(variables('factoryId'), '/linkedServices/LS_FHIR_AZSQL')]"
+			]
+		}
+	]
+}
